@@ -18,14 +18,18 @@ export const routes: IRoute[] = [
     children: [
       {
         name: 'menu.dashboard.workplace',
-        key: 'dashboard/workplace',
-      },
-    ],
+        key: 'dashboard/workplace'
+      }
+    ]
   },
   {
     name: 'Example',
-    key: 'example',
+    key: 'example'
   },
+  {
+    name: 'menu.user',
+    key: 'user'
+  }
 ];
 
 export const getName = (path: string, routes) => {

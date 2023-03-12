@@ -1,5 +1,6 @@
 const i18n = {
   'en-US': {
+    'menu.user': 'User',
     'menu.dashboard': 'Dashboard',
     'menu.dashboard.workplace': 'Workplace',
     'menu.user.info': 'User Info',
@@ -35,9 +36,10 @@ const i18n = {
     'message.empty': 'Empty',
     'message.empty.tips': 'No Content',
     'message.lang.tips': 'Language switch to ',
-    'navbar.search.placeholder': 'Please search',
+    'navbar.search.placeholder': 'Please search'
   },
   'zh-CN': {
+    'menu.user': '用户',
     'menu.dashboard': '仪表盘',
     'menu.dashboard.workplace': '工作台',
     'menu.user.info': '用户信息',
@@ -73,8 +75,8 @@ const i18n = {
     'message.empty': '清空',
     'message.empty.tips': '暂无内容',
     'message.lang.tips': '语言切换至 ',
-    'navbar.search.placeholder': '输入内容查询',
-  },
+    'navbar.search.placeholder': '输入内容查询'
+  }
 };
 
 export default i18n;
