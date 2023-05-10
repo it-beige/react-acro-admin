@@ -37,7 +37,6 @@ export default function Register() {
 
   // 验证码
   const { data, mutate, error: capchaError } = useCapcha();
-
   return (
     <Fragment>
       <div className="hero min-h-screen bg-base-200">

@@ -76,7 +76,12 @@ export default function verifyCode() {
       router.push((router.query.callback || "/") as string);
     } catch (error) {
       console.log(error);
-
+      router.push({
+        pathname: "/login",
+        query: {
+          phoneNumber: router.query.phoneNumber,
+        },
+      });
       setLoginError(error as ResponseError);
     }
   };

@@ -9,7 +9,9 @@ const server = process.env.SERVER;
 export function getMenu() {
   return fetch(server + "/menus")
     .then((res) => res.json())
-    .then((json) => json.data.menus);
+    .then((json) => {
+      return json.data ? json.data.menus : []
+    });
 }
 
 export function getMenuIds(menu) {

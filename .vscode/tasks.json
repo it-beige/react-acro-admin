@@ -1,0 +1,28 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "typescript",
+			"tsconfig": "tsconfig.json",
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build",
+			"label": "cd ./packages/cms tsc: build",
+			"options": {
+				"emit": "true",
+				"pretty": "true",
+			}
+		},
+		{
+			"type": "npm",
+			"script": "dev:cms",
+			"problemMatcher": [],
+			"label": "npm: dev:cms",
+			"detail": "npm run dev:cms",
+			"dependsOn": [
+				"tsc: build"
+			]
+		}
+	]
+}
