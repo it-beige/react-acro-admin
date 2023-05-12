@@ -1,272 +1,75 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
-import { encryptPassword, makeSalt } from '@/shared/utils/cryptogram.util';
-import { LoginDTO } from '../dtos/login.dto';
-import { UserInfoDto, RegisterDTO, RegisterSMSDTO, RegisterCodeDTO } from '../dtos/auth.dto';
-import { User } from '../entities/user.mongo.entity';
+import { UserService } from './user.service'
+import { Inject, Injectable, NotFoundException } from '@nestjs/common'
+import { JwtService } from '@nestjs/jwt'
+import { MongoRepository } from 'typeorm'
+import { User } from '../entities/user.mongo.entity'
+import { LoginDto } from '../dtos/login.dto'
+import { generatePassWord, makeSalt } from '../../shared/utils/cryptogram'
+import { AppLogger } from '@/shared/logger/logger.services'
+import {
+  RegisterCodeDTO,
+  RegisterDTO,
+  RegisterSMSDTO,
+  RegisterSMSPlusDTO,
+  UserInfoDto,
+  UserInfoVO,
+} from '../dtos/auth.dto'
 import { Role } from '../entities/role.mongo.entity'
-import { TokenVO } from '../dtos/token.vo';
-import { JwtService } from '@nestjs/jwt';
-import { In, Like, Raw, MongoRepository } from 'typeorm';
-import { writeFile } from 'fs/promises';
-import { join } from 'path'
-import { UploadService } from '../../shared/upload/upload.service';
-import { UserService } from './user.service';
-import { InjectRedis, Redis } from '@nestjs-modules/ioredis';
-import { CaptchaService } from '../../shared/captcha/captcha.service';
-import { AppLogger } from '../../shared/logger/logger.service';
+import { InjectRedis } from '@nestjs-modules/ioredis'
+import { Redis } from 'ioredis'
+import { CaptchaService } from '@/shared/captcha/captcha.service'
 
 @Injectable()
 export class AuthService {
-
   constructor(
-    private readonly logger: AppLogger,
-
-    @Inject('USER_REPOSITORY')
-    private userRepository: MongoRepository<User>,
-
-    @Inject('ROLE_REPOSITORY')
-    private roleRepository: MongoRepository<Role>,
-
     private readonly jwtService: JwtService,
-
-    private readonly uploadService: UploadService,
-
-    private readonly userService: UserService,
-
+    @Inject('USER_REPOSITORY')
+    private readonly userRepository: MongoRepository<User>,
+    @Inject('ROLE_REPOSITORY')
+    private readonly roleRepository: MongoRepository<Role>,
+    private readonly logger: AppLogger,
     @InjectRedis() private readonly redis: Redis,
-
+    private readonly userService: UserService,
     private readonly captchaService: CaptchaService,
+  ) {}
 
-  ) {
-    this.logger.setContext(AuthService.name);
-  }
-
-
-  async init() {
-    // 清空数据
-    this.clear()
-
-    // 创建管理员角色
-    let { _id: role } = await this.roleRepository.save({
-      "name": "admin",
-      "permissions": {
-        "dashboard/workplace": [
-          "write",
-          "read"
-        ],
-        "user": [
-          "read",
-          "write"
-        ],
-        "course": [
-          "write",
-          "read"
-        ],
-        "role": [
-          "read",
-          "write"
-        ]
-      }
-    })
-
-
-    const admin = await this.register({
-      "phoneNumber": "18888888888",
-      "name": "管理员1",
-      "password": "888888",
-      "passwordRepeat": "888888",
-    })
-
-    // 添加角色权限
-    admin.data.role = role
-    this.userService.update(admin.data._id, admin.data)
-
-    let { _id: role2 } = await this.roleRepository.save({
-      "name": "user",
-      "permissions": {
-        "dashboard/workplace": [
-          "write",
-          "read"
-        ],
-        "course": [
-          "write",
-          "read"
-        ],
-      }
-    })
-
-
-    const user = await this.register({
-      "phoneNumber": "13611177422",
-      "name": "普通用户1",
-      "password": "888888",
-      "passwordRepeat": "888888"
-    })
-
-    // 添加角色权限
-    user.data.role = role2
-    this.userService.update(user.data._id, user.data)
-
-  }
-
-
-  clear() {
-    this.userRepository.deleteMany({})
-    this.roleRepository.deleteMany({})
-
-    return { ok: 1 }
-  }
-
-
-
-  /**
-   * 校验注册信息
-   * @param registerDTO 
-   */
-  async checkRegisterForm(
-    registerDTO: RegisterDTO,
-  ): Promise<any> {
-
-    if (registerDTO.password !== registerDTO.passwordRepeat) {
-      throw new NotFoundException('两次输入的密码不一致，请检查')
+  // 使用jwt签发token
+  certificate(user: User) {
+    const payload = {
+      id: user._id,
     }
-    const { phoneNumber } = registerDTO
-    const hasUser = await this.userRepository
-      .findOneBy({ phoneNumber })
-    if (hasUser) {
-      throw new NotFoundException('用户已存在')
-    }
+    const token = this.jwtService.sign(payload)
+    return token
   }
 
-  /**
-   * 注册
-   * @param registerDTO 
-   * @returns 
-   */
-  async register(
-    registerDTO: RegisterDTO
-  ): Promise<any> {
-
-    await this.checkRegisterForm(registerDTO)
-
-    const { name, password, phoneNumber } = registerDTO;
-    // const salt = makeSalt(); // 制作密码盐
-    // const hashPassword = encryptPassword(password, salt);  // 加密密码
-
-    const { salt, hashPassword } = this.getPassword(password)
-
-    const newUser: User = new User()
-    newUser.name = name
-    newUser.phoneNumber = phoneNumber
-    newUser.password = hashPassword
-    newUser.salt = salt
-    const data = await this.userRepository.save(newUser)
-    delete data.password
-    delete data.salt
-    return {
-      data
-    }
-  }
-
-  getPassword(password) {
-    const salt = makeSalt(); // 制作密码盐
-    const hashPassword = encryptPassword(password, salt);  // 加密密码
-    return { salt, hashPassword }
-  }
-
-  /**
-   * 短信注册
-   * @param registerDTO 
-   * @returns 
-   */
-  async registerBySMS(
-    registerDTO: RegisterSMSDTO
-  ): Promise<any> {
-
-
-    const { phoneNumber, smsCode } = registerDTO;
-
-    // 短信验证码校验
-    const code = await this.getMobileVerifyCode(phoneNumber)
-    if (smsCode !== code) {
-      throw new NotFoundException('验证码不一致，或已过期')
-    }
-
-    let user = await this.userRepository
-      .findOneBy({ phoneNumber })
-    if (!user) {
-      // 用户不存在匿名注册
-      const password = makeSalt(8)
-      user = await this.register({
-        phoneNumber,
-        name: `手机用户${makeSalt(8)}`,
-        password,
-        passwordRepeat: password
-      })
-    }
-
-    const token = await this.certificate(user)
-    return {
-      data: {
-        token
-      }
-    }
-
-  }
-
-  /**
-   * 登陆校验用户信息
-   * @param loginDTO 
-   * @returns 
-   */
-  async checkLoginForm(
-    loginDTO: LoginDTO
-  ): Promise<any> {
-
-    const { phoneNumber, password } = loginDTO
-    const user = await this.userRepository
-      .findOneBy({ phoneNumber })
+  // 登陆校验用户信息
+  async checkUserValidity(login: LoginDto) {
+    const { phoneNumber, password } = login
+    const user = await this.userRepository.findOneBy({ phoneNumber })
     if (!user) {
       throw new NotFoundException('用户不存在')
     }
-    const { password: dbPassword, salt } = user
-    const currentHashPassword = encryptPassword(password, salt);
-    // console.log({ currentHashPassword, dbPassword })
-    if (currentHashPassword !== dbPassword) {
+
+    const { salt } = user
+    const hashPassWord = generatePassWord(salt, password)
+    if (user.password !== hashPassWord) {
       throw new NotFoundException('密码错误')
     }
 
     return user
   }
 
-  // 生成 token
-  async certificate(user: User) {
-    const payload = {
-      id: user._id
-    };
-    const token = this.jwtService.sign(payload);
-    return token
-  }
-
-  async login(
-    loginDTO: LoginDTO
-  ): Promise<TokenVO> {
-    const user = await this.checkLoginForm(loginDTO)
+  // 登录
+  async login(login: LoginDto) {
+    const user = await this.checkUserValidity(login)
     const token = await this.certificate(user)
-    this.logger.log(null, 'Log Login...')
-    this.logger.log(null, 'Debug Login...')
-    this.logger.warn(null, 'Warn Login...')
-    this.logger.error(null, 'Error Login...')
     return {
-      data: {
-        token
-      }
+      data: { token },
     }
   }
 
-
+  // 查询用户并获取权限
   async info(id: string) {
-    // 查询用户并获取权限
     const user = await this.userRepository.findOneBy(id)
     const data: UserInfoDto = Object.assign({}, user)
     if (user.role) {
@@ -275,91 +78,140 @@ export class AuthService {
     }
 
     return data
-
   }
 
   /**
-   * 上传
+   * 短信注册
+   * @param registerDTO
+   * @returns
    */
-  async uploadAvatar(id: string, file) {
-    const { url } = await this.uploadService.upload(file)
+  async registerBySMS(registerDTO: RegisterSMSDTO): Promise<any> {
+    const { phoneNumber, smsCode } = registerDTO
+    const codeCache = await this.checkVerifyCode(phoneNumber)
+    if (codeCache !== smsCode) {
+      throw new NotFoundException('验证码错误或已过期')
+    }
 
-    this.userService.update(id, { avatar: url })
+    let user = await this.userRepository.findOneBy({ phoneNumber })
+    const message = user ? '登录成功' : '注册成功'
+    // 用户不存在匿名注册
+    if (!user) {
+      const password = makeSalt(8)
+      user = await this.register({
+        phoneNumber,
+        name: `手机用户_${phoneNumber}`,
+        password,
+        passwordRepeat: password,
+      })
+    }
 
-    return { data: url }
+    const token = await this.certificate(user)
+    return {
+      code: 200,
+      message,
+      data: token,
+    }
   }
 
   /**
-   * 获取验证码（四位随机数字）
-   * @returns 
+   * 用户名密码注册
+   * @param registerDTO
+   * @returns
    */
+  async registerBySMSPlus(registerDTO: RegisterSMSPlusDTO): Promise<any> {
+    const { phoneNumber, smsCode } = registerDTO
+    const codeCache = await this.checkVerifyCode(phoneNumber)
+    if (codeCache !== smsCode) {
+      throw new NotFoundException('验证码错误或已过期')
+    }
+
+    let user = await this.userRepository.findOneBy({ phoneNumber })
+    const message = user ? '登录成功' : '注册成功'
+    // 用户不存在根据用户提供的信息注册
+    if (!user) {
+      user = await this.register(registerDTO)
+    }
+
+    const token = await this.certificate(user)
+    return {
+      code: 200,
+      message,
+      data: token,
+    }
+  }
+
+  /**
+   * 注册
+   * @param registerDTO
+   * @returns
+   */
+  async register(registerDTO: RegisterDTO): Promise<any> {
+    // 校验用户信息
+    await this.checkRegisterForm(registerDTO)
+
+    const { phoneNumber, password, name } = registerDTO
+    const { salt, hashPassword } = this.userService.getPassword(password)
+    const user = new User()
+    user.phoneNumber = phoneNumber
+    user.name = name
+    user.salt = salt
+    user.password = hashPassword
+
+    return await this.userRepository.save(user)
+  }
+
+  /**
+   * 校验注册信息
+   * @param registerDTO
+   */
+  async checkRegisterForm(registerDTO: RegisterDTO): Promise<any> {
+    // 校验重复密码是否一致
+    const { password, passwordRepeat, phoneNumber } = registerDTO
+    if (password !== passwordRepeat) {
+      throw new NotFoundException('两次输入的密码不一致')
+    }
+
+    // 校验手机号是否重复注册
+    const user = await this.userRepository.findOneBy({ phoneNumber })
+    if (user) {
+      throw new NotFoundException(`用户已存在,昵称${user.name}`)
+    }
+  }
+
+  // 生成随机验证码
   generateCode() {
-    return [0, 0, 0, 0].map(() => (parseInt(Math.random() * 10 + ''))).join('')
+    return Array.from({ length: 4 })
+      .map(() => parseInt(Math.random() * 10 + ''))
+      .join('')
   }
 
-  async getMobileVerifyCode(mobile) {
-    return await this.redis.get('verifyCode' + mobile);
-  }
-
-  /**
-   * 获取短信验证码
-   * @param mobile 
-   */
-  async registerCode(dto: RegisterCodeDTO) {
-
+  async registerCode(register: RegisterCodeDTO) {
     // 验证图形验证码
-    const captcha = await this.redis.get('captcha' + dto.captchaId);
-    if (!captcha || captcha.toLocaleLowerCase() !== dto.captchaCode.toLocaleLowerCase()) {
+    const captchaCodeCache = await this.redis.get(
+      `captcha_${register.captchaId}`,
+    )
+    if (!captchaCodeCache) {
+      throw new NotFoundException('图形验证码已过期, 请重新生成后验证')
+    }
+    const { captchaCode, phoneNumber } = register
+    if (
+      !captchaCode ||
+      captchaCodeCache.toLocaleLowerCase() !== captchaCode.toLocaleLowerCase()
+    ) {
       throw new NotFoundException('图形验证码错误')
     }
 
-    const redisData = await this.getMobileVerifyCode(dto.phoneNumber);
-    if (redisData !== null) {
-      // 验证码未过期
-      // 重复发送
-      throw new NotFoundException('验证码未过期,无需再次发送')
-    }
-
-    // TODO 测试状态
     const code = this.generateCode()
-    // const code = '0000'
-    this.logger.log(null, '生成验证码：' + code)
-    await this.redis.set('verifyCode' + dto.phoneNumber, code, "EX", 60);
-
+    await this.setVerifyCode(phoneNumber, code)
     return code
+  }
 
+  setVerifyCode(phoneNumber, code) {
+    return this.redis.set(`${phoneNumber}_code`, code, 'EX', 60)
+  }
 
-    // phoneCodeList[phone] = code;
-
-    // const smsParams = {
-    //   "PhoneNumberSet": [
-    //     `+86${phone}`
-    //   ],
-    //   "SmsSdkAppId": "xxxxx",
-    //   "TemplateId": "12*****",
-    //   "SignName": "dooring服务",
-    //   "TemplateParamSet": [code]
-    // };
-    // try {
-    //   const result = await client.SendSms(smsParams);
-    //   if(result?.SendStatusSet.Code === 'Ok') {
-    //     return {
-    //       code: 200,
-    //       msg: 'Success',
-    //     };
-    //   }else {
-    //     return {
-    //       code: 500,
-    //       msg: `Service error: ${result?.SendStatusSet.Message}`,
-    //     };
-    //   }
-    // }catch(err) {
-    //   return {
-    //     code: 500,
-    //     msg: `Service error: ${err}`
-    //   };
-    // }
-
+  checkVerifyCode(phoneNumber) {
+    return this.redis.get(`${phoneNumber}_code`)
   }
 
   /**
@@ -368,14 +220,15 @@ export class AuthService {
   async getCaptcha() {
     const { data, text } = await this.captchaService.captche()
     const id = makeSalt(8)
-
-    this.logger.log(null, '图形验证码:' + text)
-
     // 验证码存入将Redis
-    this.redis.set('captcha' + id, text, "EX", 600);
+    this.redis.set(`captcha_${id}`, text, 'EX', 60 * 10)
+    const image = `data:image/svg+xml;base64,${Buffer.from(data).toString(
+      'base64',
+    )}`
 
-    const image = `data:image/svg+xml;base64,${Buffer.from(data).toString('base64')}`
-    return { id, image }
+    return {
+      id,
+      image,
+    }
   }
-
 }

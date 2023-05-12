@@ -1,40 +1,40 @@
 import {
   Controller,
-  UseGuards,
-  HttpStatus,
+  Get,
   Post,
   Body,
-  Query,
-  Get,
   Patch,
   Param,
   Delete,
-  UseInterceptors,
+  HttpStatus,
+  Query,
   Req,
+  UseInterceptors,
   UploadedFile,
-} from '@nestjs/common';
-import { UserService } from '../services/user.service';
-import { CreateUserDto } from '../dtos/user.dto';
+  UseGuards,
+} from '@nestjs/common'
+import { UserService } from '../services/user.service'
+import { CreateUserDto, UpdateUserDto } from '../dtos/user.dto'
 import {
-  ApiOperation,
-  ApiTags,
-  ApiResponse,
   ApiBearerAuth,
   ApiConsumes,
-} from '@nestjs/swagger';
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger'
 import {
   BaseApiErrorResponse,
   BaseApiResponse,
   SwaggerBaseApiResponse,
-} from '../../shared/dtos/base-api-response.dto';
-import { PaginationParams2Dto } from '../../shared/dtos/pagination-params.dto';
-import { AuthGuard } from '@nestjs/passport';
-import { RolesGuard } from '../guards/roles.guard';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { UploadDTO } from '../dtos/upload.dto';
+} from '../../shared/dtos/base-api-response.dto'
+import { PaginationParamsDto } from '../../shared/dtos/pagination-params.dto'
 
-@ApiTags('用户')
+import { UploadDto } from '../dtos/upload.dto'
+import { FileInterceptor } from '@nestjs/platform-express'
+import { AuthGuard } from '@nestjs/passport'
+
 @Controller('user')
+@ApiTags('用户管理')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
@@ -44,16 +44,18 @@ export class UserController {
   @ApiResponse({
     status: HttpStatus.CREATED,
     type: SwaggerBaseApiResponse(CreateUserDto),
+    description: '创建成功',
   })
   @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
+    status: HttpStatus.BAD_REQUEST,
     type: BaseApiErrorResponse,
+    description: '创建失败',
   })
   // @ApiBearerAuth()
   // @UseGuards(AuthGuard('jwt'))
   @Post('')
   create(@Body() user: CreateUserDto) {
-    return this.userService.create(user);
+    return this.userService.create(user)
   }
 
   @ApiOperation({
@@ -68,14 +70,10 @@ export class UserController {
     type: BaseApiErrorResponse,
   })
   // @ApiBearerAuth()
-  // @UseGuards(AuthGuard('jwt'), RolesGuard)
+  // @UseGuards(AuthGuard('jwt'))
   @Get()
-  async findAll(@Query() query: PaginationParams2Dto) {
-    const { data, count } = await this.userService.findAll(query);
-    return {
-      data,
-      meta: { total: count },
-    };
+  async findAll(@Query() query: PaginationParamsDto) {
+    return this.userService.findAll(query)
   }
 
   @ApiOperation({
@@ -83,7 +81,7 @@ export class UserController {
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    type: SwaggerBaseApiResponse(CreateUserDto),
+    type: SwaggerBaseApiResponse([CreateUserDto]),
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -95,57 +93,72 @@ export class UserController {
   async findOne(@Param('id') id: string) {
     return {
       data: await this.userService.findOne(id),
-    };
+    }
   }
 
   @ApiOperation({
-    summary: '更新单个用户',
+    summary: '更新用户',
   })
-  // @UseGuards(AuthGuard('jwt'))
-  // @ApiBearerAuth()
   @ApiResponse({
-    status: HttpStatus.OK,
-    type: SwaggerBaseApiResponse(CreateUserDto),
+    status: HttpStatus.CREATED,
+    type: SwaggerBaseApiResponse(UpdateUserDto),
+    description: '更新成功',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    type: BaseApiErrorResponse,
+    description: '更新失败',
+  })
+  // @ApiBearerAuth()
+  // @UseGuards(AuthGuard('jwt'))
+  @Patch(':id')
+  async update(@Param('id') id: string, @Body() user: UpdateUserDto) {
+    return {
+      data: await this.userService.update(id, user),
+    }
+  }
+
+  @ApiOperation({
+    summary: '删除用户',
+  })
+  @ApiResponse({
+    status: HttpStatus.NO_CONTENT,
+    type: SwaggerBaseApiResponse([CreateUserDto]),
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
     type: BaseApiErrorResponse,
   })
-  @Patch(':id')
-  async update(ainain,
-    @Param('id') id: string,
-    @Body() updateCourseDto: CreateUserDto,
-  ) {
-    return {
-      data: await this.userService.update(id, updateCourseDto),
-    };
-  }
-
-  // @UseGuards(AuthGuard('jwt'))
-  // @ApiBearerAuth()
-  @ApiOperation({
-    summary: '删除单个用户',
-  })
-  @ApiResponse({
-    status: HttpStatus.NO_CONTENT,
-  })
-  // @ApiBearerAuth()
-  // @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.userService.remove(id);
+    return this.userService.remove(id)
   }
 
+  @ApiOperation({
+    summary: '文件上传',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    type: SwaggerBaseApiResponse({}),
+    description: '上传成功',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    type: BaseApiErrorResponse,
+    description: '上传失败',
+  })
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @Post('upload')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
-  async upload(
+  upload(
     @Req() req: any,
-    @Body() uploadDTO: UploadDTO,
-    @UploadedFile() file,
+    @Body() upload: UploadDto,
+    @UploadedFile() file: Express.Multer.File,
   ): Promise<any> {
-    return await this.userService.uploadAvatar(file);
+    return this.userService.uploadAvatar(file)
   }
 }

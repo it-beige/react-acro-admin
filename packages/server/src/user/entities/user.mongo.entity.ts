@@ -1,67 +1,58 @@
-import { Entity, Column, Unique, UpdateDateColumn, ObjectIdColumn, CreateDateColumn, ManyToMany, JoinTable, OneToOne } from 'typeorm';
-import { ObjectId } from 'mongoose';
-import { Role } from './role.mongo.entity';
-import { Common } from '@/shared/entities/common.entity';
+import { Column, Entity } from 'typeorm'
+import { Common } from '../../shared/entities/common.mongo.entity'
+import { ObjectId } from 'mongoose'
 
 @Entity()
 export class User extends Common {
+  // 昵称
+  @Column('text')
+  name: string
 
-    // 昵称
-    @Column('text')
-    name: string;
+  // @Unique('email', ['email'])
+  @Column({ length: 200 })
+  email: string
 
+  @Column('text')
+  avatar: string
 
-    @Column('text')
-    avatar: string;
+  // 手机号
+  @Column('text')
+  phoneNumber: string
 
-    // @Unique('email', ['email'])
-    @Column({ length: 200 })
-    email: string;
+  @Column()
+  password: string
 
-    // 手机号
-    @Column('text')
-    phoneNumber: string;
+  @Column()
+  role?: ObjectId
 
-    @Column()
-    password: string;
+  @Column()
+  job: string
 
-    @Column()
-    role?: ObjectId
+  @Column()
+  jobName: string
 
-    @Column()
-    job: string;
+  @Column()
+  organization: string
 
-    @Column()
-    jobName: string;
+  @Column()
+  organizationName: string
 
-    @Column()
-    organization: string;
+  @Column()
+  location: string
 
-    @Column()
-    organizationName: string;
+  @Column()
+  locationName: string
 
-    @Column()
-    location: string;
+  @Column()
+  introduction: string
 
-    @Column()
-    locationName: string;
+  @Column()
+  personalWebsite: string
 
-    @Column()
-    introduction: string;
-
-    @Column()
-    personalWebsite: string;
-
-    @Column("boolean")
-    verified: boolean;
-
-    // 加密盐
-    @Column({
-        type: 'text',
-        select: false,
-    })
-    salt: string;
-
-    @Column()
-    isAccountDisabled?: boolean;
+  // 加密盐
+  @Column({
+    type: 'text',
+    select: false,
+  })
+  salt: string
 }

@@ -1,54 +1,41 @@
-import { SuccessVO } from "@/shared/dtos/success.dto";
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, Matches, IsString } from 'class-validator';
-import { regMobileCN } from "@/shared/utils/regex.util";
-
+import { SuccessVO } from '@/shared/dtos/success.dto'
+import { ApiProperty } from '@nestjs/swagger'
+import { IsNotEmpty, Matches, IsString } from 'class-validator'
+import { regMobileCN } from '@/shared/utils/regexp.util'
 
 export class RegisterSMSDTO {
-
   /**
    * 手机号（系统唯一）
    */
   @Matches(regMobileCN, { message: '请输入正确手机号' })
   @IsNotEmpty({ message: '请输入手机号' })
   @ApiProperty({ example: '13611177420' })
-  readonly phoneNumber: string;
+  readonly phoneNumber: string
 
   /**
    * 短信验证码
    */
   @IsNotEmpty({ message: '请输入验证码' })
   @ApiProperty({ example: '0000' })
-  readonly smsCode: string;
-
-
-  /**
-   * 图形验证码
-   */
-  @IsNotEmpty({ message: '请输入图形验证码' })
-  @ApiProperty({ example: '0000' })
-  readonly verifyCode: string;
-
+  readonly smsCode: string
 }
 
 export class RegisterCodeDTO {
-
   /**
    * 手机号（系统唯一）
    */
   @Matches(regMobileCN, { message: '请输入正确手机号' })
   @IsNotEmpty({ message: '请输入手机号' })
   @ApiProperty({ example: '13611177420' })
-  readonly phoneNumber: string;
+  readonly phoneNumber: string
 
   @IsNotEmpty({ message: '请输入验证码ID' })
   @ApiProperty({ example: 'GaBUGhJzESU=' })
-  readonly captchaId: string;
+  readonly captchaId: string
 
-  @IsNotEmpty({ message: '请输入手机号' })
+  @IsNotEmpty({ message: '请输入验证码' })
   @ApiProperty({ example: '0000' })
-  readonly captchaCode: string;
-
+  readonly captchaCode: string
 }
 
 export class RegisterDTO {
@@ -58,22 +45,22 @@ export class RegisterDTO {
   @Matches(regMobileCN, { message: '请输入正确手机号' })
   @IsNotEmpty({ message: '请输入手机号' })
   @ApiProperty({ example: '13611177421' })
-  readonly phoneNumber: string;
+  readonly phoneNumber: string
 
   /**
    * 用户名
    */
   @IsNotEmpty({ message: '请输入用户昵称' })
   @IsString({ message: '名字必须是 String 类型' })
-  @ApiProperty({ example: "然叔" })
-  readonly name: string;
+  @ApiProperty({ example: '北歌' })
+  readonly name: string
 
   /**
    * 用户密码
    */
   @IsNotEmpty({ message: '请输入密码' })
   @ApiProperty({ example: '888888' })
-  readonly password: string;
+  readonly password: string
 
   /**
    * 二次输入密码
@@ -83,71 +70,94 @@ export class RegisterDTO {
   readonly passwordRepeat: string
 }
 
-export class UserInfoDto {
+export class RegisterSMSPlusDTO extends RegisterDTO {
+  /**
+   * 手机号（系统唯一）
+   */
+  @Matches(regMobileCN, { message: '请输入正确手机号' })
+  @IsNotEmpty({ message: '请输入手机号' })
+  @ApiProperty({ example: '13611177420' })
+  readonly phoneNumber: string
+
+  @IsNotEmpty({ message: '请输入验证码ID' })
+  @ApiProperty({ example: 'GaBUGhJzESU=' })
+  readonly captchaId: string
+
+  @IsNotEmpty({ message: '请输入验证码' })
+  @ApiProperty({ example: '0000' })
+  readonly captchaCode: string
 
   /**
-  * 手机号（系统唯一）
-  */
+   * 短信验证码
+   */
+  @IsNotEmpty({ message: '请输入验证码' })
+  @ApiProperty({ example: '0000' })
+  readonly smsCode: string
+}
+
+export class UserInfoDto {
+  /**
+   * 手机号（系统唯一）
+   */
   @Matches(regMobileCN, { message: '请输入正确手机号' })
   @IsNotEmpty({ message: '请输入手机号' })
   @ApiProperty({ example: '13611177421' })
-  readonly phoneNumber: string;
+  readonly phoneNumber: string
 
-  @ApiProperty({ example: '然叔' })
+  @ApiProperty({ example: '北歌' })
   @IsNotEmpty()
-  name: string;
+  name: string
 
   @ApiProperty({ example: '123456' })
   @IsNotEmpty()
-  password: string;
+  password: string
 
-  @ApiProperty({ example: '15906475@qq.com' })
+  @ApiProperty({ example: 'it_beige@163.com' })
   @IsNotEmpty()
-  email: string;
+  email: string
 
   @ApiProperty({ example: 'cookieboty' })
   @IsNotEmpty()
-  avatar: string;
+  avatar: string
 
   @ApiProperty({ example: 'frontend' })
   @IsNotEmpty()
-  job: string;
+  job: string
 
   @ApiProperty({ example: '前端开发工程师' })
   @IsNotEmpty()
-  jobName: string;
+  jobName: string
 
   @ApiProperty({ example: 'cookieboty' })
   @IsNotEmpty()
-  organization: string;
+  organization: string
 
   @ApiProperty({ example: 'beijing' })
   @IsNotEmpty()
-  location: string;
+  location: string
 
   @ApiProperty({ example: 'cookieboty' })
   @IsNotEmpty()
-  personalWebsite: string;
+  personalWebsite: string
 
   @ApiProperty({ example: '{}' })
   permissions?: object | []
 
   salt?: string
-
 }
 
 export class RegisterCodeItem {
   /**
- * 手机号
- */
-  mobile: string;
+   * 手机号
+   */
+  mobile: string
 }
 
 export class UserInfoItem {
   /**
    * 用户id
    */
-  id: number;
+  id: number
 
   /**
    * 创建时间
@@ -162,7 +172,7 @@ export class UserInfoItem {
   /**
    * 手机号
    */
-  mobile: string;
+  mobile: string
 }
 
 export class UserInfoVO {
@@ -171,4 +181,4 @@ export class UserInfoVO {
 
 export class UserInfoSuccessVO extends SuccessVO {
   data: UserInfoVO
-} 
+}

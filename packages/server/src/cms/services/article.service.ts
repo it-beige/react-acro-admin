@@ -1,17 +1,19 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { In, Like, Raw, MongoRepository, ObjectID } from 'typeorm';
+import { Injectable, Inject } from '@nestjs/common'
+import { In, Like, Raw, MongoRepository } from 'typeorm'
 import { Article } from '../entities/article.mongo.entity'
-import { PaginationParams2Dto } from '../../shared/dtos/pagination-params.dto'
-import { CreateArticleDto, UpdateArticleDto } from '../dtos/article.dto';
+import {
+  PaginationParams2Dto,
+  PaginationParamsDto,
+} from '../../shared/dtos/pagination-params.dto'
+import { CreateArticleDto, UpdateArticleDto } from '../dtos/article.dto'
 import axios from 'axios'
 
 @Injectable()
 export class ArticleService {
   constructor(
     @Inject('ARTICLE_REPOSITORY')
-    private articleRepository: MongoRepository<Article>
-  ) { }
-
+    private articleRepository: MongoRepository<Article>,
+  ) {}
 
   async create(course: CreateArticleDto) {
     const ret = await this.articleRepository.save(course)
@@ -19,16 +21,19 @@ export class ArticleService {
     return ret
   }
 
-  async findAll({ pageSize, page }: PaginationParams2Dto): Promise<{ data: Article[], count: number }> {
-
+  async findAll({
+    pageSize,
+    page,
+  }: PaginationParamsDto): Promise<{ data: Article[]; count: number }> {
     const [data, count] = await this.articleRepository.findAndCount({
       order: { createdAt: 'DESC' },
       skip: (page - 1) * pageSize,
-      take: (pageSize * 1),
-      cache: true
+      take: pageSize * 1,
+      cache: true,
     })
     return {
-      data, count
+      data,
+      count,
     }
   }
 
@@ -38,21 +43,19 @@ export class ArticleService {
 
   async update(id: string, course: UpdateArticleDto) {
     // 去除时间戳和id
-    ['_id', 'createdAt', 'updatedAt'].forEach(
-      k => delete course[k]
-    )
+    ;['_id', 'createdAt', 'updatedAt'].forEach((k) => delete course[k])
     const ret = await this.articleRepository.update(id, course)
 
     // TODO 暂时使用同步刷新
     // await this.sync(id)
     return ret
   }
+
   /**
    * 同步文章
-   * @param id 
+   * @param id
    */
   async sync(id: string) {
-
     const secret = process.env.NEST_VALIDATE_TOKEN
     // const host = 'http://localhost:3001'
     const host = process.env.NEXT_HOST
@@ -68,7 +71,6 @@ export class ArticleService {
 
     return
   }
-
 
   async remove(id: string): Promise<any> {
     return await this.articleRepository.delete(id)

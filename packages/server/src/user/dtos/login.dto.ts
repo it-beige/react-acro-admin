@@ -1,21 +1,21 @@
-import { IsNotEmpty, Matches } from "class-validator"
-import { regMobileCN } from "@/shared/utils/regex.util";
-import { ApiProperty } from '@nestjs/swagger';
+import { regMobileCN } from '../../shared/utils/regexp.util'
+import { ApiProperty } from '@nestjs/swagger'
+import { IsNotEmpty, Matches, isNotEmpty } from 'class-validator'
 
-export class LoginDTO {
-
+export class LoginDto {
   /**
    * 手机号（系统唯一）
    */
-  @Matches(regMobileCN, { message: '请输入正确手机号' })
+  @ApiProperty({
+    example: '16666666666',
+  })
   @IsNotEmpty({ message: '请输入手机号' })
-  @ApiProperty({ example: '18888888888' })
-  readonly phoneNumber: string;
+  @Matches(regMobileCN, { message: '请输入正确手机号' })
+  phoneNumber: string
 
-  /**
-   * 用户密码
-   */
+  @ApiProperty({
+    example: '123456',
+  })
   @IsNotEmpty({ message: '请输入密码' })
-  @ApiProperty({ example: '888888' })
-  readonly password: string;
+  password: string
 }

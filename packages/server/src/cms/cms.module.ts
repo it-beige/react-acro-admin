@@ -1,27 +1,15 @@
-import { Module } from '@nestjs/common';
-import { SharedModule } from '@/shared/shared.module';
-import { ArticleController } from './controllers/article.controller';
-import { CMSProviders } from './cms.providers';
-import { ArticleService } from './services/article.service';
-import { MenuService } from './services/menu.service';
-import { MenuController } from './controllers/menu.controller';
-
-
+import { SharedModule } from '@/shared/shared.module'
+import { Module } from '@nestjs/common'
+import { CMSProviders } from './cms.providers'
+import { ArticleController } from './controllers/article.controller'
+import { MenuController } from './controllers/menu.controller'
+import { MenuService } from './services/menu.service'
+import { ArticleService } from './services/article.service'
 
 @Module({
-    imports: [
-        SharedModule,
-    ],
-    controllers: [
-        ArticleController, MenuController
-    ],
-    providers: [
-        ...CMSProviders, ArticleService, MenuService
-
-    ],
-    exports: [
-        // UserService, AuthService, ...UserProviders
-    ],
-
+  imports: [SharedModule],
+  exports: [],
+  providers: [...CMSProviders, ArticleService, MenuService],
+  controllers: [ArticleController, MenuController],
 })
-export class CMSModule { }
+export class CMSModule {}

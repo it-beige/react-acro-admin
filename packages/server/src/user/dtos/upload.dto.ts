@@ -1,19 +1,15 @@
+import { ApiProperty } from '@nestjs/swagger'
 
-import { ApiProperty } from '@nestjs/swagger';
+export class UploadDto {
+  @ApiProperty({
+    example: '文件名称',
+  })
+  name: string
 
-
-export class UploadDTO {
-
-    @ApiProperty({ example: 'xxx' })
-    name: string;
-
-
-    /**
-     * 手机号（系统唯一）
-     */
-    @ApiProperty({ type: 'string', format: 'binary', required: true })
-    file: Express.Multer.File;
-
-
-
+  @ApiProperty({
+    required: true,
+    type: 'string',
+    format: 'binary',
+  })
+  file: Express.Multer.File
 }

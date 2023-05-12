@@ -1,109 +1,110 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { In, Like, Raw, MongoRepository, ObjectID } from 'typeorm';
+import { Injectable, Inject } from '@nestjs/common'
+import { MongoRepository } from 'typeorm'
+import { ObjectID } from 'mongodb'
 import { Menu } from '../entities/menu.mongo.entity'
-import { PaginationParams2Dto } from '../../shared/dtos/pagination-params.dto'
-import { CreateMenuDto, UpdateMenuDto } from '../dtos/menu.dto';
-import * as fs from 'fs'
-import * as compressing from 'compressing'
-import { ArticleService } from './article.service';
-import * as path from 'path'
-import { UploadService } from '../../shared/upload/upload.service';
+import { ArticleService } from './article.service'
+import { UploadService } from '@/shared/upload/upload.service'
+import { CreateMenuDto, UpdateMenuDto } from '../dtos/menu.dto'
+import { plainToClass } from 'class-transformer'
+import { UploadDto } from '@/user/dtos/upload.dto'
+import { zip } from 'compressing'
+import { existsSync, readdir, rm } from 'fs-extra'
+import { extname, join } from 'path'
+import { readFileSync, readdirSync, rmSync, rmdirSync } from 'fs'
+
 @Injectable()
 export class MenuService {
   constructor(
     @Inject('MENU_REPOSITORY')
     private MenuRepository: MongoRepository<Menu>,
-
     @Inject('ARTICLE_REPOSITORY')
     private articleRepository: MongoRepository<Menu>,
-
     private articleService: ArticleService,
+    private uploadService: UploadService,
+  ) {}
 
-    private uploadService: UploadService
-
-  ) { }
-
-
+  async update(menus: UpdateMenuDto) {
+    const { upsertedId } = await this.MenuRepository.updateOne(
+      {},
+      { $set: menus },
+      { upsert: true },
+    )
+    return upsertedId
+      ? await this.MenuRepository.findOneBy(upsertedId._id.toHexString())
+      : null
+  }
 
   async find(): Promise<{ data: object }> {
-
     const data = await this.MenuRepository.findOneBy({})
-
     data && delete data._id
     return {
-      data: data ? data : { menus: {} }
+      data: data ? data : { menus: {} },
     }
   }
 
-
-  async update(data: UpdateMenuDto) {
-    // 去除时间戳和id
-    ['_id', 'createdAt', 'updatedAt'].forEach(
-      k => delete data[k]
-    )
-    return await this.MenuRepository.updateOne({}, { $set: data }, { upsert: true })
-  }
-
-
-  async import(file) {
-
+  async import(file: Express.Multer.File, updateDto: UploadDto) {
     const { path: uploadPath } = await this.uploadService.upload(file)
+    // const [root] = path.split('.')
+    const root = uploadPath.replace(extname(uploadPath), '')
+    await zip.uncompress(uploadPath, root)
+    const ignoreDir = ['.DS_Store', 'images', 'image']
 
-    const root = uploadPath.replace(path.extname(uploadPath), '')
-    await compressing.zip.uncompress(uploadPath, root)
+    const categoryList = (await readdir(root))
+      .filter((i) => !ignoreDir.includes(i))
+      .filter((i) => existsSync(join(root, i)))
 
-
-    this.articleRepository.deleteMany({});
-
-
-    // const root = path.resolve('../../contents/大班车测试内容');
-    const list = fs.readdirSync(root)
-      .filter(menu => menu !== 'image')
-      .filter(menu => fs.statSync(root + '/' + menu).isDirectory());
-    const menus = [];
-    for (const menu of list) {
-      menus.push(await this.importCategory(menu, root + '/' + menu));
+    const menus = []
+    for (const category of categoryList) {
+      // 导入目录(菜单)
+      menus.push(await this.importCategory(category, root, ignoreDir))
     }
-    console.log('list', JSON.stringify(menus));
-    await this.update({ menus });
 
-    await fs.rmSync(uploadPath)
-    await fs.rmdirSync(root, { recursive: true })
-
+    await this.update({ menus })
+    await rmSync(uploadPath)
+    await rm(root, { recursive: true })
   }
 
-  /**
-   * 导入品类
-   * @param name 
-   * @param category 
-   * @returns 
-   */
-  async importCategory(name, category) {
-    const list = fs.readdirSync(category)
-      .filter(v => fs.statSync(category + '/' + v).isDirectory());
-
-    const children = [];
-    for (let article of list) {
-      children.push(await await this.importArticle(article, category + '/' + article));
+  async importCategory(category: string, root: string, ignoreDir: string[]) {
+    const categoryDir = (src) => join(root, category, src)
+    const articles = readdirSync(join(root, category))
+      .filter((i) => existsSync(categoryDir(i)))
+      .filter((i) => !ignoreDir.includes(i))
+    let children = []
+    for (const article of articles) {
+      children = children.concat(
+        await this.importArticle(article, categoryDir(article), ignoreDir),
+      )
     }
+
     return {
-      key: Date.now().toString(),
+      key: new ObjectID().toString(),
       // 去掉序号
-      title: name.slice(3),
+      title: category,
       type: 'category',
-      children
-    };
-  }
-  async importArticle(title, dir) {
-    [title] = fs.readdirSync(dir).filter(v => v !== 'image')
-    if (!title) return
-    let article = (dir + '/' + title)
-    // .replace(/(\s+)/g, '\\$1')
-    const content = fs.readFileSync(article).toString();
-    title = title.replace('.md', '')
-    const { _id } = await this.articleService.create({ title, content });
-    console.log('创建文章成功', _id);
-    return { key: _id, title, type: 'article' };
+      children,
+    }
   }
 
+  async importArticle(article: string, articleSrc, ignoreDir: string[]) {
+    const articlePaths = readdirSync(articleSrc).filter(
+      (i) => !ignoreDir.includes(i),
+    )
+
+    const saveArticles = await Promise.all(
+      articlePaths.map(async (p) => {
+        const src = join(articleSrc, p)
+        const ext = extname(src)
+        const title = p.replace(ext, '')
+        const content = readFileSync(src, 'utf-8')
+        const { _id } = await this.articleService.create({ title, content })
+        return {
+          key: _id,
+          title,
+          content,
+        }
+      }),
+    )
+
+    return saveArticles
+  }
 }

@@ -1,0 +1,12 @@
+import { Injectable } from '@nestjs/common'
+
+@Injectable()
+export class SharedService {
+  constructor() {}
+
+  getEnv() {
+    return {
+      name: 'beige',
+    }
+  }
+}

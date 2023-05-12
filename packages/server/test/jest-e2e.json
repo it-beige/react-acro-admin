@@ -9,7 +9,7 @@
   },
   "rootDir": ".",
   "testEnvironment": "node",
-  "testRegex": ".e2e-spec.ts$",
+  "testRegex": "\\.(e2e-)?spec\\.(t|j)s$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   }

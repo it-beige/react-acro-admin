@@ -1,37 +1,29 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
-import { encryptFileMD5 } from '@/shared/utils/cryptogram.util';
-import { ensureDir, outputFile } from 'fs-extra';
-
-import { join } from 'path'
+import { Inject, Injectable } from '@nestjs/common'
+import type { UPLOAD_TYPE } from '../../user/user.providers'
+import { ensureDir, outputFile } from 'fs-extra'
+import { encryptFileMD5 } from '../utils/cryptogram'
+import { getUploadDir } from '../utils/upload'
 
 @Injectable()
 export class UploadService {
+  constructor(
+    @Inject('UPLOAD_REPOSITORY')
+    private readonly uploadRepository: UPLOAD_TYPE,
+  ) {}
+  async upload(file: Express.Multer.File) {
+    const path = this.uploadRepository.path
+    const uploadDir = getUploadDir(this.uploadRepository.path)
+    await ensureDir(uploadDir)
 
-    constructor(
-    ) { }
+    const md5Sign = encryptFileMD5(file.buffer)
+    const ext = file.originalname.split('.').at(-1)
+    const fileName = `${md5Sign}.${ext}`
+    const uploadPath = `${uploadDir}/${fileName}`
+    await outputFile(uploadPath, file.buffer)
 
-    /**
-     * 上传
-     */
-    async upload(file) {
-        // 判断是否存在此文件夹
-        const uploadDir = (!!process.env.UPLOAD_DIR && process.env.UPLOAD_DIR !== '') ? process.env.UPLOAD_DIR : join(__dirname, '../../..', 'static/upload')
-
-        await ensureDir(uploadDir)
-        const currentSign = encryptFileMD5(file.buffer)
-        const arr = file.originalname.split('.')
-        const fileType = arr[arr.length - 1]
-        const fileName = currentSign + '.' + fileType
-
-        const uploadPath = uploadDir + '/' + fileName + ''
-        await outputFile(uploadPath, file.buffer)
-
-        return {
-            url: '/static/upload/' + fileName,
-            path: uploadPath
-        }
-
-
+    return {
+      url: `/${path}/${fileName}`,
+      path: uploadPath,
     }
-
+  }
 }

@@ -7,3 +7,12 @@ apps:
     env:
       NODE_ENV: production
       RUNNING_ENV: prod
+
+
+# apps: 定义一个应用程序的数组，可以包含多个应用程序配置。
+# script: 指定要运行的应用程序的入口文件路径。在这个示例中，应用程序的入口文件是dist/src/main.js。
+# name: 指定应用程序的名称。在这个示例中，应用程序的名称是test_server。
+# instances: 指定应用程序的实例数量。在这个示例中，只有一个实例运行。
+# watch: 指定是否启用文件变动监控。如果设置为true，PM2将监视应用程序文件的变化，并在文件变化时自动重启应用程序。
+# ignore_watch: 指定要忽略监视的文件或目录。在这个示例中，static和mongodb目录将被忽略。
+# env: 定义应用程序的环境变量。在这个示例中，设置了两个环境变量：NODE_ENV和RUNNING_ENV，它们分别被设置为production和prod

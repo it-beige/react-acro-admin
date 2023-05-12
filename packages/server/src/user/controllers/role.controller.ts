@@ -1,62 +1,67 @@
-import { Controller, UseGuards, HttpStatus, Post, Body, Query, Get, Patch, Param, Delete } from '@nestjs/common';
-import { RoleService } from '../services/role.service';
-import { CreateRoleDto } from '../dtos/role.dto';
-import { ApiOperation, ApiTags, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { BaseApiErrorResponse } from '../../shared/dtos/base-api-response.dto'
 import {
-  BaseApiErrorResponse, BaseApiResponse, SwaggerBaseApiResponse
-} from '../../shared/dtos/base-api-response.dto';
-import { PaginationParams2Dto } from '../../shared/dtos/pagination-params.dto'
-import { AuthGuard } from '@nestjs/passport';
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common'
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
+import {
+  BaseApiResponse,
+  SwaggerBaseApiResponse,
+} from '@/shared/dtos/base-api-response.dto'
+import { createRoleDto } from '../dtos/role.dto'
+import { RoleService } from '../services/role.service'
+import { PaginationParamsDto } from '../../shared/dtos/pagination-params.dto'
 
-
-@ApiTags('角色')
 @Controller('role')
+@ApiTags('角色管理')
 export class RoleController {
-  constructor(
-    private readonly RoleService: RoleService,
-  ) { }
+  constructor(private readonly roleService: RoleService) {}
 
   @ApiOperation({
     summary: '新增角色',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
-    type: SwaggerBaseApiResponse(CreateRoleDto),
+    type: SwaggerBaseApiResponse(createRoleDto),
+    description: '创建成功',
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
     type: BaseApiErrorResponse,
   })
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
   @Post('')
-  create(@Body() Role: CreateRoleDto) {
-    return this.RoleService.create(Role);
+  create(@Body() role: createRoleDto) {
+    return this.roleService.create(role)
   }
-
 
   @ApiOperation({
     summary: '查找所有角色',
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    type: SwaggerBaseApiResponse([CreateRoleDto]),
+    type: SwaggerBaseApiResponse([createRoleDto]),
+    description: '查找成功',
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
     type: BaseApiErrorResponse,
+    description: '查找失败',
   })
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
   @Get()
-  async findAll(
-    @Query() query: PaginationParams2Dto
-  ) {
-    // console.log(query)
-    const { data, count } = await this.RoleService.findAll(query);
+  async findAll(@Query() query: PaginationParamsDto) {
+    const { data, count } = await this.roleService.findAll(query)
     return {
       data,
-      meta: { total: count }
+      meta: {
+        total: count,
+      },
     }
   }
 
@@ -65,54 +70,59 @@ export class RoleController {
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    type: SwaggerBaseApiResponse(CreateRoleDto),
+    type: SwaggerBaseApiResponse(createRoleDto),
+    description: '查找成功',
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
     type: BaseApiErrorResponse,
+    description: '查找失败',
   })
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return {
-      data: await this.RoleService.findOne(id)
+      data: await this.roleService.findOne(id),
     }
   }
 
   @ApiOperation({
-    summary: '更新单个角色',
+    summary: '更新角色',
   })
-  @UseGuards(AuthGuard('jwt'))
-  @ApiBearerAuth()
   @ApiResponse({
     status: HttpStatus.OK,
-    type: SwaggerBaseApiResponse(CreateRoleDto),
+    type: SwaggerBaseApiResponse(createRoleDto),
+    description: '更新成功',
   })
   @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
+    status: HttpStatus.BAD_REQUEST,
     type: BaseApiErrorResponse,
+    description: '更新失败',
   })
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateCourseDto: CreateRoleDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateCourseDto: createRoleDto,
+  ) {
     return {
-      data: await this.RoleService.update(id, updateCourseDto)
+      data: await this.roleService.update(id, updateCourseDto),
     }
   }
 
-  @UseGuards(AuthGuard('jwt'))
-  @ApiBearerAuth()
   @ApiOperation({
-    summary: '删除单个角色',
+    summary: '删除角色',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    type: SwaggerBaseApiResponse(createRoleDto),
+    description: '删除成功',
   })
   @ApiResponse({
     status: HttpStatus.NO_CONTENT,
+    type: BaseApiErrorResponse,
+    description: '删除失败',
   })
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.RoleService.remove(id);
+  async remove(@Param('id') id: string) {
+    return await this.roleService.remove(id)
   }
-
 }
